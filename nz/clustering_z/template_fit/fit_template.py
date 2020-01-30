@@ -16,9 +16,9 @@ plotdir = './plots/'
 
 #do you want to propagate the gamma uncertainty into the n(z) covariance?
 #'N' to ignore gamma uncertainty, 'J' to use the jacobian, 'R' for random draws
-#apply_gamma_error = 'N'
+apply_gamma_error = 'N'
 #apply_gamma_error = 'J'
-apply_gamma_error = 'R'
+#apply_gamma_error = 'R'
 
 ndraws = 100000 #used if apply_gamma_error = R
 
@@ -68,8 +68,10 @@ for sample in samples:
 	fitted_nz_table = []
 	fitted_nz_table.append(nz_table[0])
 	coeff_mean_list = []
+	coeff_mean_cov_list = []
 	coeff_width_list = []
 	coeff_mean_width_list = []
+	coeff_mean_width_cov_list = []
 	delta_z_y1_method_list = []
 	for ibin in xrange(sample['nbins']):
 		print 'bin', ibin+1
@@ -159,12 +161,13 @@ for sample in samples:
 			return interp.interp1d(stretch*(z_theory-zmean)+zmean+deltaz, nz_theory, fill_value=0.,bounds_error=False)(z_eval)/stretch
 
 
-		#fun the template fits (and a y1 style difference in means for comparison)
+		#run the template fits (and a y1 style difference in means for comparison)
 		delta_z_y1_method = np.trapz(z_data*nz_data,x=z_data)/np.trapz(nz_data,x=z_data)-np.trapz(z_theory*nz_theory,x=z_theory)/np.trapz(nz_theory,x=z_theory)
 		delta_z_y1_method_list.append(delta_z_y1_method)
 
 		coeff, coeff_cov = scipy.optimize.curve_fit(shift_1, z_data, nz_data, p0=[0.], sigma=cov,  absolute_sigma=True)
 		coeff_mean_list.append(coeff)
+		coeff_mean_cov_list.append(np.sqrt(coeff_cov)) #error
 		np.savetxt(outdir + '{label}_nz_mean_cov_bin{ibin}_.txt'.format(ibin=ibin+1, label=sample['label']), coeff_cov )
 
 		coeff, coeff_cov = scipy.optimize.curve_fit(stretch_1, z_data, nz_data, p0=[1.], sigma=cov,  absolute_sigma=True)
@@ -173,6 +176,7 @@ for sample in samples:
 
 		coeff, coeff_cov = scipy.optimize.curve_fit(stretch_shift_1, z_data, nz_data, p0=[1.,0.], sigma=cov,  absolute_sigma=True)
 		coeff_mean_width_list.append(coeff)
+		coeff_mean_width_cov_list.append(coeff_cov)
 		np.savetxt(outdir + '{label}_nz_width_mean_cov_bin{ibin}.txt'.format(ibin=ibin+1, label=sample['label']), coeff_cov )
 
 		ngrid = 100
@@ -221,9 +225,19 @@ for sample in samples:
 	np.savetxt(outdir + '{label}_nz_mean_coeff.txt'.format(label=sample['label']), coeff_mean_list, header='deltaz')
 	np.savetxt(outdir + '{label}_nz_width_coeff.txt'.format(label=sample['label']), coeff_width_list, header='stretch')
 	np.savetxt(outdir + '{label}_nz_width_mean_coeff.txt'.format(label=sample['label']), coeff_mean_width_list, header='stretch\tdeltaz')
-
 	np.savetxt(outdir + '{label}_nz_combined_fitted_mean_width.txt'.format(label=sample['label']),  np.transpose(fitted_nz_table) )
 
+	#save in cosmosis format
+	cosmosis_style_mean = '[lens_photoz_errors]\n'+'\n'.join( ['bias_{0} = gaussian {1} {2}'.format( i+1, coeff_mean_list[i][0], np.sqrt(coeff_mean_cov_list[i][0][0])) for i in xrange(sample['nbins'])] )
+	f = open(outdir + '{label}_nz_mean_cosmosis_style.txt'.format(label=sample['label']), 'w')
+	f.write(cosmosis_style_mean)
+	f.close()
 
-
-
+	cosmosis_style_width_mean = "var_bias           =  {0}\n".format( ' '.join(["%.10f" % coeff_mean_width_cov_list[i][1][1] for i in xrange(sample['nbins'])]) ) + \
+								"var_width          =  {0}\n".format( ' '.join(["%.10f" % coeff_mean_width_cov_list[i][0][0] for i in xrange(sample['nbins'])]) ) + \
+								"covar_bias_width   =  {0}\n".format( ' '.join(["%.10f" % coeff_mean_width_cov_list[i][0][1] for i in xrange(sample['nbins'])]) ) + \
+								"mean_bias          =  {0}\n".format( ' '.join(["%.10f" % coeff_mean_width_list[i][1] for i in xrange(sample['nbins'])]) ) + \
+								"mean_width         =  {0}\n".format( ' '.join(["%.10f" % coeff_mean_width_list[i][0] for i in xrange(sample['nbins'])]) ) 
+	f = open(outdir + '{label}_nz_width_mean_cosmosis_style.txt'.format(label=sample['label']), 'w')
+	f.write(cosmosis_style_width_mean)
+	f.close()

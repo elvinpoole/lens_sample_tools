@@ -11,19 +11,42 @@ import scipy.stats
 import h5py
 import os
 
-outdir = './output/'
-plotdir = './plots/'
+outdir = './output_Apr23_2020/'
+plotdir = './plots_Apr23_2020/'
 
 #do you want to propagate the gamma uncertainty into the n(z) covariance?
 #'N' to ignore gamma uncertainty, 'J' to use the jacobian, 'R' for random draws
-apply_gamma_error = 'N'
-#apply_gamma_error = 'J'
+#apply_gamma_error = 'N'
+apply_gamma_error = 'J'
 #apply_gamma_error = 'R'
 
 ndraws = 100000 #used if apply_gamma_error = R
 
 
+#april 23 2020 results
 samples = [
+	{
+		'label':'rm_0.5.1_wide_0.9binning_{apply_gamma_error}'.format(apply_gamma_error=apply_gamma_error),
+		'wz_data_dir':'../data/y3_redmagic_clusteringz_Apr23_2020/',
+		'nz_overlap_file':'output_Nov20_2019/nz_combined_overlap_rm_0.5.1_wide_0.9binning.txt', #should be same as nov result
+		'gammaarray':[0.4,0.2,0.0,0.3,1.0],
+		'gammaunc':[0.4,0.4,0.6,0.8,3.0],
+		'nbins':5,
+	}, 
+]
+tmp = [
+	{
+		'label':'maglim_v22_{apply_gamma_error}'.format(apply_gamma_error=apply_gamma_error),
+		'wz_data_dir':'../data/y3_maglim_clusteringz_Apr23_2020/',
+		'nz_overlap_file':'<PAU+VIPERS NZ FILE>',  #need to update this for PAU+VIPERS
+		'gammaarray':[-0.6,-0.5,1.0,0.5,-1.3,0.2],
+		'gammaunc':[0.3,0.7,0.9,0.8,1.8,1.8],
+		'nbins':6,
+	},
+]
+
+"""
+samples_nov20_2019 = [
 	{
 		'label':'rm_0.5.1_wide_0.9binning_{apply_gamma_error}'.format(apply_gamma_error=apply_gamma_error),
 		'wz_data_dir':'../data/y3_redmagic_clusteringz_nov20_2019/',
@@ -41,6 +64,7 @@ samples = [
 		'nbins':6,
 	},
 ]
+"""
 
 def calc_chi2( y, err, yfit ):
 	if err.shape == (len(y),len(y)): #use full covariance
@@ -73,8 +97,17 @@ for sample in samples:
 	coeff_mean_width_list = []
 	coeff_mean_width_cov_list = []
 	delta_z_y1_method_list = []
+	####
+	# set up joint plots
+	nx = int(np.floor(np.sqrt(sample['nbins'])))
+	ny = int(np.ceil(np.sqrt(sample['nbins'])))
+	fig1, axs1 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
+	fig2, axs2 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
+	####
 	for ibin in xrange(sample['nbins']):
 		print 'bin', ibin+1
+		ix = np.repeat(np.arange(ny), nx)[ibin]
+		iy =  np.tile(np.arange(nx), ny)[ibin]
 
 		#load the photo-z n(z) as a 'theory' prediction
 		z_theory = nz_table[0]
@@ -203,11 +236,19 @@ for sample in samples:
 		plt.tight_layout()
 		plt.savefig(plotdir + '{label}_2d_contours_deltaz_stretch_bin{ibin}.png'.format(ibin=ibin+1, label=sample['label']))
 		plt.close()
+		axs1[iy,ix].axhline(0.0, color='k',ls='--')
+		axs1[iy,ix].axvline(1.0, color='k',ls='--')
+		axs1[iy,ix].contour(X,Y,Z,levels=levels,colors='r',label='bin {0}'.format(ibin+1))
+		axs1[iy,ix].set_title('bin {0}'.format(ibin+1))
+		axs1[iy,ix].set_xlabel('stretch')
+		axs1[iy,ix].set_ylabel(r'$\Delta z$')
+		axs1[iy,ix].legend()
 		########### end plot ############
 
 		########### start plot: plot best fit n(z) ############
 		photoz_chi2 = calc_chi2(nz_data, cov, interp.interp1d(z_theory, nz_theory)(z_data))
 		fitted_chi2   = calc_chi2(nz_data, cov, interp.interp1d(z_theory, stretch_shift_1(z_theory,coeff[0],coeff[1]))(z_data))
+		plt.figure()
 		plt.plot(z_theory[select_range], nz_theory[select_range], 'b-', label='photoz, chi2={0}/{1}'.format(np.round(photoz_chi2,decimals=1), len(nz_data)))
 		plt.plot(z_theory[select_range], stretch_shift_1(z_theory[select_range],coeff[0],coeff[1]), 'r-', label='fit to xcorr ' + r'$\Delta z, \ s$' + ' chi2={0}/{1}'.format(np.round(fitted_chi2,decimals=1),len(nz_data)))
 		plt.errorbar(z_data, nz_data, err, fmt='.', label='xcorr')
@@ -215,10 +256,23 @@ for sample in samples:
 		plt.legend()
 		plt.savefig(plotdir + '{label}_nz_bin{ibin}.png'.format(ibin=ibin+1, label=sample['label']))
 		plt.close()
+		axs2[iy,ix].plot(z_theory[select_range], nz_theory[select_range], 'b-', label='photoz, chi2={0}/{1}'.format(np.round(photoz_chi2,decimals=1), len(nz_data)))
+		axs2[iy,ix].plot(z_theory[select_range], stretch_shift_1(z_theory[select_range],coeff[0],coeff[1]), 'r-', label='fit to xcorr ' + r'$\Delta z, \ s$' + ' chi2={0}/{1}'.format(np.round(fitted_chi2,decimals=1),len(nz_data)))
+		axs2[iy,ix].errorbar(z_data, nz_data, err, fmt='.', label='xcorr')
+		axs2[iy,ix].set_xlabel('z')
+		#axs2[iy,ix].legend(fontsize=8)
 		########### end plot ############
 
-
 		fitted_nz_table.append(stretch_shift_1(z_theory,coeff[0],coeff[1]))
+
+
+	#save figs 
+	fig1.tight_layout()
+	fig1.savefig(plotdir + '{label}_2d_contours_deltaz_stretch_allbins.png'.format(label=sample['label']))
+	fig1.clear()
+	fig2.tight_layout()
+	fig2.savefig(plotdir + '{label}_nz_allbins.png'.format( label=sample['label']) )
+	fig2.clear()
 
 	#save the results
 	np.savetxt(outdir + '{label}_nz_mean_delta_z_y1_method.txt'.format(label=sample['label']), delta_z_y1_method_list , header='deltaz')

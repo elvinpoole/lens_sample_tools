@@ -11,8 +11,8 @@ import scipy.stats
 import h5py
 import os
 
-outdir = './output_Apr23_2020/'
-plotdir = './plots_Apr23_2020/'
+outdir = './output_Apr23_2020_cutarray/'
+plotdir = './plots_Apr23_2020_cutarray/'
 
 #do you want to propagate the gamma uncertainty into the n(z) covariance?
 #'N' to ignore gamma uncertainty, 'J' to use the jacobian, 'R' for random draws
@@ -21,6 +21,8 @@ apply_gamma_error = 'J'
 #apply_gamma_error = 'R'
 
 ndraws = 100000 #used if apply_gamma_error = R
+
+apply_cut_array = True
 
 
 #april 23 2020 results
@@ -32,6 +34,8 @@ samples = [
 		'gammaarray':[0.4,0.2,0.0,0.3,1.0],
 		'gammaunc':[0.4,0.4,0.6,0.8,3.0],
 		'nbins':5,
+		'cutzarray_min':[0.15,0.31,0.45,0.57,0.69], #Y3 redmagic v0.5
+		'cutzarray_max':[0.41,0.55,0.71,0.89,1.05],
 	}, 
 ]
 tmp = [
@@ -42,6 +46,8 @@ tmp = [
 		'gammaarray':[-0.6,-0.5,1.0,0.5,-1.3,0.2],
 		'gammaunc':[0.3,0.7,0.9,0.8,1.8,1.8],
 		'nbins':6,
+		'cutzarray_min':[0.1,0.2,0.52,0.58,0.72,0.82],   #Y3 mag lim sample
+		'cutzarray_max':[0.46,0.66,0.74,0.96,1.08,1.08],
 	},
 ]
 
@@ -118,8 +124,16 @@ for sample in samples:
 		xcorr_file =h5py.File(xcorr_file_list[ibin])
 		z_edges_data = np.transpose(xcorr_file['z_edges/block0_values'].value)[0]
 		z_data = np.transpose(xcorr_file['z/block0_values'].value)[0]
-		nz_data = np.transpose(xcorr_file['results/block0_values'].value)[0]
+		if apply_cut_array == True:
+			select_edges = (z_edges_data >= sample['cutzarray_min'][ibin]) * (z_edges_data <= sample['cutzarray_max'][ibin])
+			z_edges_data = z_edges_data[select_edges]
+			select = (z_data > sample['cutzarray_min'][ibin]) * (z_data < sample['cutzarray_max'][ibin])
+			z_data = z_data[select]
+		else:
+			select = np.ones(len(z_data)).astype('bool')
+		nz_data = np.transpose(xcorr_file['results/block0_values'].value)[0][select]
 		cov = np.transpose(xcorr_file['cov/block0_values'].value)
+		cov = np.array([line[select] for line in cov[select]])
 		err = np.sqrt(np.diagonal(cov))
 		dz_data = z_edges_data[1]-z_edges_data[0]
 

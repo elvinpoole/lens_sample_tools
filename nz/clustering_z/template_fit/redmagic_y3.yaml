@@ -11,6 +11,7 @@ plotdir: ./plots_Apr23_2020_cutarray_amp_chi21_mod/
 label: rm_0.5.1_wide_0.9binning
 wz_data_dir: ../data/y3_redmagic_clusteringz_Apr23_2020/
 nz_overlap_file: output_Nov20_2019/nz_combined_overlap_rm_0.5.1_wide_0.9binning.txt
+#nz_overlap_file: output_overlap/nz_combined_overlap_rm_0.5.1_wide_0.9binning_large-dz.txt
 nz_full_file: /Users/jackelvinpoole/DES/cats/y3/redmagic/combined_sample_0.5.1_wide_0.9binning_zmax0.95/nz_y3_redmagic_v0.5.1_wide_gold_2.2.1_combined_hd3_hl2_z_samp.fits
 nbins: 5
 

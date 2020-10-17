@@ -36,11 +36,17 @@ class NZ_theory:
 	"""
 	class for the template n(z) to be used in the fit
 	"""
-	def normalize(self, nz_data):
+	def normalize(self, nz_data, limit_z_range=False ):
 		assert self.nbins == nz_data.nbins
 		for ibin in range(self.nbins):
 			nz_data_bin = nz_data.nz_dict[ibin]
-			norm = (sum( nz_data_bin.nz )*nz_data_bin.dz)/(sum(self.nzs[ibin])*self.dz)
+			data_area = sum( nz_data_bin.nz )*nz_data_bin.dz 
+			if limit_z_range == True:
+				select = (self.zlow > nz_data_bin.z_edges[0])*(self.zhigh < nz_data_bin.z_edges[-1])
+				theory_area = sum(self.nzs[ibin][select])*self.dz
+			else:
+				theory_area = sum(self.nzs[ibin])*self.dz
+			norm = data_area/theory_area
 			self.nzs[ibin] = norm*self.nzs[ibin]
 		return
 
@@ -230,7 +236,8 @@ class Config:
 		self.label = config['label']
 		self.wz_data_dir = config['wz_data_dir']
 		self.nz_overlap_file = config['nz_overlap_file']
-		self.nz_full_file = config['nz_full_file']
+		self.overlap_format = config['overlap_format']
+		#self.nz_full_file = config['nz_full_file']
 		self.nbins = config['nbins']
 		#
 		self.apply_gamma_error = config['apply_gamma_error']
@@ -244,6 +251,16 @@ class Config:
 		self.cutzarray_max = np.array(config['cutzarray_max'].split()).astype('float') 
 		#
 		self.absolute_sigma = config['absolute_sigma']
+		#
+		try:
+			self.do_power_law = config['do_power_law']
+		except KeyError:
+			self.do_power_law = True
+		#
+		try:
+			self.limit_z_range = config['limit_z_range']
+		except KeyError:
+			self.limit_z_range = False
 		#
 		try:
 			self.apply_amp_err = config['apply_amp_err']
@@ -433,10 +450,12 @@ class TemplateFit:
 		nx = int(np.floor(np.sqrt(self.nbins)))
 		ny = int(np.ceil(np.sqrt(self.nbins)))
 		fig1, axs1 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
-
+		ax_list = axs1.flatten()
+		#ax_list[1].set_title(self.config.label+'_'+label)
+		fig1.text(0.5,0.95,self.config.label+'_'+label,ha='center',fontsize=14)
 		for ibin in range(self.nbins):
-			ix =  np.repeat(np.arange(ny), nx)[ibin]
-			iy =  np.tile(np.arange(nx), ny)[ibin]
+			#ix =  np.repeat(np.arange(ny), nx)[ibin]
+			#iy =  np.tile(np.arange(nx), ny)[ibin]
 
 			coeff_2d = self.coeff[label][ibin][:2]
 			coeff_cov_2d = self.coeff_cov[label][ibin][:2,:2]
@@ -453,14 +472,15 @@ class TemplateFit:
 			Zsort = np.sort(Z.flatten())
 			levels = [Zsort[np.abs(np.cumsum(Zsort)-(1-frac_level)*np.sum(Z)) == np.abs(np.cumsum(Zsort)-(1-frac_level)*np.sum(Z)).min()][0] for frac_level in frac_levels]
 
-			axs1[iy,ix].axhline(0.0, color='k',ls='--')
-			axs1[iy,ix].axvline(1.0, color='k',ls='--')
-			axs1[iy,ix].contour(X,Y,Z,levels=levels,colors='r',label='bin {0}'.format(ibin+1))
-			axs1[iy,ix].set_title('bin {0}'.format(ibin+1))
-			axs1[iy,ix].set_xlabel('stretch')
-			axs1[iy,ix].set_ylabel(r'$\Delta z$')
-			axs1[iy,ix].legend()	
-		fig1.tight_layout()
+			ax_list[ibin].axhline(0.0, color='k',ls='--')
+			ax_list[ibin].axvline(1.0, color='k',ls='--')
+			bin_label = 'bin {0}'.format(ibin+1)
+			ax_list[ibin].contour(X,Y,Z,levels=levels,colors='r' )
+			ax_list[ibin].set_title('bin {0}'.format(ibin+1))
+			ax_list[ibin].set_xlabel('stretch')
+			ax_list[ibin].set_ylabel(r'$\Delta z$')
+			ax_list[ibin].legend()	
+		fig1.tight_layout(rect=(0, 0, 1, 0.95))
 		fig1.savefig(self.config.plotdir + '{label1}_2d_contours_{label2}_allbins.png'.format(label1=self.config.label, label2=label ))	 
 		fig1.clear()
 		return 
@@ -469,10 +489,12 @@ class TemplateFit:
 		nx = int(np.floor(np.sqrt(self.nbins)))
 		ny = int(np.ceil(np.sqrt(self.nbins)))
 		fig2, axs2 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
-
+		ax_list = axs2.flatten()
+		#ax_list[1].set_title(self.config.label+'_'+extra_label)
+		fig2.text(0.5,0.95,self.config.label+'_'+extra_label,ha='center',fontsize=14)
 		for ibin in range(self.nbins):
-			ix =  np.repeat(np.arange(ny), nx)[ibin]
-			iy =  np.tile(np.arange(nx), ny)[ibin]
+			#ix =  np.repeat(np.arange(ny), nx)[ibin]
+			#iy =  np.tile(np.arange(nx), ny)[ibin]
 
 			z_data  = self.nz_data.nz_dict[ibin].z
 			nz_data = self.nz_data.nz_dict[ibin].nz
@@ -490,14 +512,15 @@ class TemplateFit:
 
 			select_range = (z_theory > self.nz_data.nz_dict[ibin].z_edges.min())*(z_theory < self.nz_data.nz_dict[ibin].z_edges.max())
 
-			axs2[iy,ix].plot(z_theory[select_range], nz_theory[select_range], 'b-', label='fid, chi2={0}/{1}'.format(np.round(photoz_chi2,decimals=1), len(nz_data)))
-			axs2[iy,ix].plot(z_theory[select_range], func(z_theory[select_range], *coeff[ibin], z_theory=z_theory, nz_theory=nz_theory ), 'r-', label='fit chi2={0}/{1}'.format(np.round(fitted_chi2,decimals=1),len(nz_data)))
-			#axs2[iy,ix].errorbar(z_data, nz_data, err, fmt='.', label='xcorr')
-			axs2[iy,ix].errorbar(z_data, nz_data, err, fmt='.' )
-			axs2[iy,ix].legend(loc='lower left')
-
-		axs2[0,1].set_title(extra_label)
-		fig2.tight_layout()
+			#axs2[iy,ix].plot(z_theory[select_range], nz_theory[select_range], 'b-', label='fid, chi2={0}/{1}'.format(np.round(photoz_chi2,decimals=1), len(nz_data)))
+			#axs2[iy,ix].plot(z_theory[select_range], func(z_theory[select_range], *coeff[ibin], z_theory=z_theory, nz_theory=nz_theory ), 'r-', label='fit chi2={0}/{1}'.format(np.round(fitted_chi2,decimals=1),len(nz_data)))
+			#axs2[iy,ix].errorbar(z_data, nz_data, err, fmt='.' )
+			#axs2[iy,ix].legend(loc='lower left')
+			ax_list[ibin].plot(z_theory[select_range], nz_theory[select_range], 'b-', label='fid, chi2={0}/{1}'.format(np.round(photoz_chi2,decimals=1), len(nz_data)))
+			ax_list[ibin].plot(z_theory[select_range], func(z_theory[select_range], *coeff[ibin], z_theory=z_theory, nz_theory=nz_theory ), 'r-', label='fit chi2={0}/{1}'.format(np.round(fitted_chi2,decimals=1),len(nz_data)))
+			ax_list[ibin].errorbar(z_data, nz_data, err, fmt='.' )
+			ax_list[ibin].legend(loc='lower left')
+		fig2.tight_layout(rect=(0, 0, 1, 0.95))
 		fig2.savefig(self.config.plotdir + '{label}_nz_{extra_label}_allbins.png'.format( label=self.config.label, extra_label=extra_label) )
 		fig2.clear()
 
@@ -528,14 +551,22 @@ class TemplateFit:
 
 if __name__ == "__main__":
 	config = Config(sys.argv[1])
-	nz_overlap = NZ_redmagic_txt( config.nz_overlap_file ) #redmagic n(z) in overlap region
-	nz_full = NZ_redmagic_tp( config.nz_full_file ) #redmagic n(z) in full footpritn (for testing)
+	
+	if config.overlap_format == 'txt':
+		nz_overlap = NZ_redmagic_txt( config.nz_overlap_file ) 
+	elif config.overlap_format == 'fits':
+		nz_overlap = NZ_redmagic_tp( config.nz_overlap_file ) 
+	else:
+		raise RuntimeError('file format not valid')
+
+	#nz_full = NZ_redmagic_tp( config.nz_full_file ) #redmagic n(z) in full footpritn (for testing)
+	
 	nz_data = NZ_data( config.wz_data_dir, config ) #the clustering-z n(z)
 	nz_data.apply_gamma(config.gamma_array, config.gamma_var_array, config.apply_gamma_error, ndraws=config.ndraws)
 	nz_data.save_cov( config.outdir + '{label}_cov_corrected'.format(label=config.label ) + '_bin{ibin}.txt' )
 
-	nz_overlap.normalize(nz_data)
-	nz_full.normalize(nz_data)
+	nz_overlap.normalize(nz_data, limit_z_range=config.limit_z_range)
+	#nz_full.normalize(nz_data)
 
 	#run fits
 	template_fit = TemplateFit(config, nz_overlap, nz_data)
@@ -551,7 +582,8 @@ if __name__ == "__main__":
 	template_fit.fit_func(apply_stretchA, 		'stretchA', 		[1.,1.0], 		save=True)
 	template_fit.fit_func(apply_stretch_shift, 	'stretch_shift', 	[1.,0.], 		save=True)
 	template_fit.fit_func(apply_stretch_shiftA, 'stretch_shiftA', 	[1.,0.,1.0], 	save=True)
-	template_fit.fit_func(apply_power_law, 		'power_law', 		[1.,1.,0.,1.], 	save=True )
+	if config.do_power_law==True:
+		template_fit.fit_func(apply_power_law, 	'power_law', 		[1.,1.,0.,1.], 	save=True )
 
 	template_fit.save_cosmosis_style()
 
@@ -588,8 +620,9 @@ if __name__ == "__main__":
 		func=apply_stretch_shiftA, 
 		coeff=template_fit.coeff['stretch_shiftA'],
 		extra_label='stretch_shiftA')
-	template_fit.plot_fitted_nz(
-		func=apply_power_law, 
-		coeff=template_fit.coeff['power_law'],
-		extra_label='power_law')
+	if config.do_power_law==True:
+		template_fit.plot_fitted_nz(
+			func=apply_power_law, 
+			coeff=template_fit.coeff['power_law'],
+			extra_label='power_law')
 

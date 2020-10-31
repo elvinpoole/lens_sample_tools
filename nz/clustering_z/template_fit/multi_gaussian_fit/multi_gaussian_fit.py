@@ -47,7 +47,12 @@ if __name__ == "__main__":
 
 	nbins = config.nbins
 
-	zedges = np.arange(0,2.0+0.00001,0.02)
+	z_ex = nz_data_fid.nz_dict[0].z_edges[0]
+	dz   = nz_data_fid.nz_dict[0].dz
+	zmin = np.round(z_ex-dz*int(z_ex/dz), 5)
+	zedges = np.arange(zmin,2.0+0.00001,dz)
+
+	#zedges = np.arange(0,2.0+0.00001,0.02)
 	zhigh = zedges[1:]
 	zlow = zedges[:-1]
 	zmid = (zlow+zhigh)/2.
@@ -88,15 +93,16 @@ if __name__ == "__main__":
 			#p0 += [0.]
 			p0 = np.array(p0)
 
-			#bounds = ([0.05*fid_height, nz.z.min(), nz.dz]*Ngauss+[-inf], [2.*fid_height, nz.z.max(), 5*fid_std]*Ngauss+[inf])
-			#bounds = ([0.05*fid_height, nz.z.min(), nz.dz]*Ngauss, [2.*fid_height, nz.z.max(), 5*fid_std]*Ngauss)
+			#bounds = ([0., nz.z.min(), nz.dz/2.]*Ngauss, [np.inf, nz.z.max(), np.inf]*Ngauss)
 			bounds = ([0., nz.z.min(), 0.]*Ngauss, [np.inf, nz.z.max(), np.inf]*Ngauss)
+			#bounds = ([-1*np.inf, nz.z.min(), -1*np.inf]*Ngauss, [np.inf, nz.z.max(), np.inf]*Ngauss)
 
 			def n_gaussians_4_optimize(x, *params):
 				return n_gaussians(x, Ngauss, *params)
-			coeff, cov = scipy.optimize.curve_fit(n_gaussians_4_optimize, nz.z, nz.nz, p0=p0, sigma=nz.cov, maxfev=100000 ) 
+			coeff, cov = scipy.optimize.curve_fit(n_gaussians_4_optimize, nz.z, nz.nz, 
+				p0=p0, sigma=nz.cov, maxfev=100000 ) 
 			chi2 = misc.calc_chi2(nz.nz, nz.cov, n_gaussians_4_optimize(nz.z, *coeff), v=False )
-			ndof = len(nz.nz)-(3.*Ngauss+1)
+			ndof = len(nz.nz)-(3.*Ngauss)
 			chi2red = chi2/ndof
 			pvalue = 1.-scipy.stats.chi2.cdf(chi2,ndof)
 			print( 'chi2_red = {0}/{1} = {2}'.format(np.round(chi2,1), ndof, np.round(chi2red, 2)) )
@@ -121,6 +127,9 @@ if __name__ == "__main__":
 		plt.close()
 
 		axs[ibin].legend()
+
+		np.savetxt(outdir + 'coeff_bin{0}.txt'.format(ibin+1), coeff)
+
 	fig.tight_layout()
 	fig.savefig( plotdir+'/nz_{0}_allbins.png'.format(label) )
 	fig.clear()

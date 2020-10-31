@@ -88,13 +88,23 @@ class NZ_data:
 		xcorr_file_list = np.sort([xcorr_dir+f for f in os.listdir(xcorr_dir) if '.h5' in f])
 		nz_dict = {}
 		for ibin, xcorr_file in enumerate(xcorr_file_list):
-			if config is not None:
-				if config.apply_amp_err == True:
-					nz_data = NZ_data_bin(xcorr_file, config.cutzarray_min[ibin], config.cutzarray_max[ibin], config.amp_err[ibin])
-				else:
-					nz_data = NZ_data_bin(xcorr_file, config.cutzarray_min[ibin], config.cutzarray_max[ibin], None )
-			else:
+			if config is None:
 				nz_data = NZ_data_bin(xcorr_file, None, None, None)
+			else:
+				if config.apply_amp_err == True:
+					amp_err = config.amp_err[ibin]
+				else:
+					amp_err = None
+				if config.apply_cut_array == True:
+					cut_min = config.cutzarray_min[ibin]
+					cut_max = config.cutzarray_max[ibin]
+				else:
+					cut_min = None
+					cut_max = None
+
+				nz_data = NZ_data_bin(xcorr_file, cut_min, cut_max, amp_err)
+				
+
 			nz_dict[ibin] = nz_data
 		self.nz_dict = nz_dict
 		self.nbins = len(xcorr_file_list)
@@ -119,6 +129,34 @@ class NZ_data:
 		for ibin in range(self.nbins):
 			self.nz_dict[ibin].save_cov( filename_template.format(ibin=ibin+1) )
 		return
+
+	def add_template_sn(self, nz_theory, template_sn):
+		"""
+		compute the shot noiuse contribution from the template 
+		and add this to the WZ poiints
+		WARNING: when you do the fits this shot noise technically moves with the template
+		I am not taking this into account.
+		This might bias us towards agreement (i.e. error bars are larger where fiducial template is larger)
+		"""
+
+		for ibin in range(self.nbins):
+			nobj = template_sn[ibin]
+
+			zedges = self.nz_dict[ibin].z_edges
+			z      = self.nz_dict[ibin].z
+			nz_interp = interp.interp1d(nz_theory.z, nz_theory.nzs[ibin])(z)
+			norm = nobj/np.sum(nz_interp)
+
+			nreal = 1000 #fix this for now
+			dvecs = []
+			for ireal in range(nreal):
+				nz_poisson = np.random.poisson( nz_interp * norm )
+				dvecs.append(nz_poisson)
+			covmat = np.cov(dvecs, rowvar=False)/(norm**2.)
+
+			self.nz_dict[ibin].cov = self.nz_dict[ibin].cov + covmat
+			self.nz_dict[ibin].err = np.sqrt(self.nz_dict[ibin].cov.diagonal())
+		return 
 
 class NZ_data_bin:
 	"""
@@ -240,6 +278,11 @@ class Config:
 		#self.nz_full_file = config['nz_full_file']
 		self.nbins = config['nbins']
 		#
+		try:
+			self.template_sn = np.array(config['template_sn'].split()).astype('float') 
+		except KeyError:
+			self.template_sn = None
+		#
 		self.apply_gamma_error = config['apply_gamma_error']
 		self.ndraws = config['ndraws']
 		self.gamma_array = np.array(config['gammaarray'].split()).astype('float') 
@@ -247,8 +290,12 @@ class Config:
 		self.gamma_var_array = self.gamma_unc_array**2.
 		#
 		self.apply_cut_array = config['apply_cut_array']
-		self.cutzarray_min = np.array(config['cutzarray_min'].split()).astype('float') 
-		self.cutzarray_max = np.array(config['cutzarray_max'].split()).astype('float') 
+		if self.apply_cut_array == True:
+			self.cutzarray_min = np.array(config['cutzarray_min'].split()).astype('float') 
+			self.cutzarray_max = np.array(config['cutzarray_max'].split()).astype('float') 
+		else:
+			self.cutzarray_min = None
+			self.cutzarray_max = None
 		#
 		self.absolute_sigma = config['absolute_sigma']
 		#
@@ -530,16 +577,17 @@ class TemplateFit:
 	def save_cosmosis_style(self,):
 
 		cosmosis_style_mean = '[lens_photoz_errors]\n'+'\n'.join( ['bias_{0} = gaussian {1} {2}'.format( i+1, self.coeff['shift'][i][0], self.coeff_err['shift'][i][0] ) for i in range( self.nbins )] )
-		f = open(self.config.outdir + '{label}_nz_mean_cosmosis_style.txt'.format(label= self.config.label ), 'w')
+		f = open(self.config.outdir + '{label}_nz_mean_fit_cosmosis_style.ini'.format(label= self.config.label ), 'w')
 		f.write(cosmosis_style_mean)
 		f.close()
 
-		cosmosis_style_width_mean = "var_bias           =  {0}\n".format( ' '.join(["%.10f" % self.coeff_cov['stretch_shift'][i][1][1] for i in range(self.nbins)]) ) + \
+		cosmosis_style_width_mean = "[cholesky_nz]" + \
+									"var_bias           =  {0}\n".format( ' '.join(["%.10f" % self.coeff_cov['stretch_shift'][i][1][1] for i in range(self.nbins)]) ) + \
 									"var_width          =  {0}\n".format( ' '.join(["%.10f" % self.coeff_cov['stretch_shift'][i][0][0] for i in range(self.nbins)]) ) + \
 									"covar_bias_width   =  {0}\n".format( ' '.join(["%.10f" % self.coeff_cov['stretch_shift'][i][0][1] for i in range(self.nbins)]) ) + \
 									"mean_bias          =  {0}\n".format( ' '.join(["%.10f" % self.coeff['stretch_shift'][i][1] for i in range(self.nbins)]) ) + \
 									"mean_width         =  {0}\n".format( ' '.join(["%.10f" % self.coeff['stretch_shift'][i][0] for i in range(self.nbins)]) ) 
-		f = open(self.config.outdir + '{label}_nz_width_mean_cosmosis_style.txt'.format(label=self.config.label), 'w')
+		f = open(self.config.outdir + '{label}_nz_width_mean_cosmosis_style.ini'.format(label=self.config.label), 'w')
 		f.write(cosmosis_style_width_mean)
 		f.close()
 		return
@@ -558,20 +606,19 @@ if __name__ == "__main__":
 		nz_overlap = NZ_redmagic_tp( config.nz_overlap_file ) 
 	else:
 		raise RuntimeError('file format not valid')
-
-	#nz_full = NZ_redmagic_tp( config.nz_full_file ) #redmagic n(z) in full footpritn (for testing)
 	
 	nz_data = NZ_data( config.wz_data_dir, config ) #the clustering-z n(z)
-	nz_data.apply_gamma(config.gamma_array, config.gamma_var_array, config.apply_gamma_error, ndraws=config.ndraws)
-	nz_data.save_cov( config.outdir + '{label}_cov_corrected'.format(label=config.label ) + '_bin{ibin}.txt' )
-
+	
 	nz_overlap.normalize(nz_data, limit_z_range=config.limit_z_range)
-	#nz_full.normalize(nz_data)
+
+	#modify data covariance
+	nz_data.apply_gamma(config.gamma_array, config.gamma_var_array, config.apply_gamma_error, ndraws=config.ndraws)
+	if config.template_sn is not None:
+		nz_data.add_template_sn(nz_overlap, config.template_sn)
+	nz_data.save_cov( config.outdir + '{label}_cov_corrected'.format(label=config.label ) + '_bin{ibin}.txt' )
 
 	#run fits
 	template_fit = TemplateFit(config, nz_overlap, nz_data)
-	#config.label = config.label+'_total'
-	#template_fit = TemplateFit(config, nz_full, nz_data)
 	
 	template_fit.fit_mean_diff(save=True) #Ross method
 	#					  Function to be fit 	Label				Starting values for input params

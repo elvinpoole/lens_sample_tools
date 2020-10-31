@@ -1,0 +1,32 @@
+#
+# config file to run template fit on clusteirng-z
+# 
+# April 23 2020 results
+
+#output directories
+outdir: output_maglim_Apr_Oct/
+plotdir: plots_maglim_Apr_Oct/
+
+#files and labels
+label: maglim_Apr_Oct
+wz_data_dir: ../../data/y3_maglim_clusteringz_1234-Apr23_2020_56-Oct21_2020/
+nz_overlap_file: 
+overlap_format: 
+nbins: 6
+
+#z dependant galaxy bias correction
+apply_gamma_error: J
+gammaarray: -0.6 -0.5  1.0  0.5 -1.1 -0.9
+gammaunc:    0.3  0.7  0.9  0.8  1.3  1.3
+
+#cut the tails from clustering-z #Y3 redmagic v0.5
+apply_cut_array: True
+ndraws: None 
+cutzarray_min: 0.10 0.20 0.52 0.58 0.72 0.78
+cutzarray_max: 0.46 0.66 0.74 0.96 1.07 1.18
+
+#absolute_sigma in curve_fit
+absolute_sigma: 
+
+do_power_law: 
+

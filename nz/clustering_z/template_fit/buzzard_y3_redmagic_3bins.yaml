@@ -1,0 +1,33 @@
+#
+# config file to run template fit on clusteirng-z
+# 
+# buzzard redmagic
+
+#output directories
+outdir: ./output_buzzard_y3_redmagic_3bins/
+plotdir: ./plots_buzzard_y3_redmagic_3bins/
+
+#files and labels
+label: buzzard_y3_redmagic_3bins
+wz_data_dir: ../data/y3_buzzard_lens_samples/redmagic_3_bins/
+nz_overlap_file: ../../buzzard/photoz/redmagic_3_bins/wz_sim_sample135_zmc_hist.fits
+overlap_format: fits
+nz_full_file: dummy
+nbins: 3
+
+#z dependant galaxy bias correction
+apply_gamma_error: J
+gammaarray: 0.05 1.7 2.15
+gammaunc: 0.95 0.9 1.7
+
+#cut the tails from clustering-z #Y3 redmagic v0.5
+apply_cut_array: False
+ndraws: None 
+cutzarray_min: 
+cutzarray_max: 
+
+#absolute_sigma in curve_fit
+absolute_sigma: False
+
+do_power_law: False
+

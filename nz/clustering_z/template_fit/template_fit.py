@@ -32,6 +32,25 @@ def nz_mean(z,nz):
 	#return np.trapz( z*nz, x=z)/np.trapz(nz,x=z)
 	return np.sum(z*nz)/np.sum(nz)
 
+def get_cov_from_chi2_grid(x,y,chi2,df):
+	rescale = chi2.min()/float(df)
+	dchi2_rescaled = (chi2-chi2.min())/rescale
+	n = 1000000
+	xs = x.min()+( x.max() - x.min() )*np.random.rand(n)
+	ys = y.min()+( y.max() - y.min() )*np.random.rand(n)
+
+	like = interp.griddata((x,y), np.exp(-1.*dchi2_rescaled/2.), (xs,ys))
+	u = np.random.rand(n)
+	select = (u < like)
+	print sum(select.astype('int'))
+
+	xsamples = xs[select]
+	ysamples = ys[select]
+
+	cov = np.cov([xsamples,ysamples])
+
+	return cov
+
 class NZ_theory:
 	"""
 	class for the template n(z) to be used in the fit
@@ -400,6 +419,10 @@ class TemplateFit:
 		self.coeff     = {}
 		self.coeff_cov = {}
 		self.coeff_err = {}
+
+		self.coeff_fromgrid = {}
+		self.coeff_cov_fromgrid = {}
+		self.coeff_err_fromgrid = {}
 		return
 
 	def fit_mean_diff(self, save=False):
@@ -489,12 +512,118 @@ class TemplateFit:
 				overwrite=True)
 		return
 
+	def fit_func_grid(self, func, label, p0, save=False):
+		"""
+		fit a function of the theory n(z) to the data n(z)
+		
+		func: 	Function in the form
+				func(z_eval,param1,param2,...,z_theory=None, nz_theory=None)
+		label: 	Label for the function (for save files and name in coeff dict)
+		p0: 	The start point of the fit, len() = nparams
+		"""
+		coeff_list = []
+		cov_list = []
+		nzs_bf = []
+		for ibin in range(self.nbins):
+			
+			#set the template in the amp function to this redshift bin
+			def func_bin(z_eval, *coeff):
+				return func(z_eval,*coeff,z_theory=self.nz_theory.z, nz_theory=self.nz_theory.nzs[ibin])
+			
+			ngrid = 100
+			nparams = len(p0)
+			arrays = []
+			for i in range(nparams):
+				if p0[i] == 0.:
+					minx = -0.07
+					maxx =  0.05
+				else:
+					minx = p0[i]*0.7
+					maxx = p0[i]*1.5
+				arrays.append( np.linspace( minx, maxx, ngrid ) )
+			grid = np.array(np.meshgrid(*arrays))
+
+			params_list = []
+			for ip in range(nparams):
+				params_list.append( grid[ip, :, :].flatten() )
+			params_list = np.transpose(params_list)
+
+			chi2_list = []
+			for params in params_list:
+				n_prediction = func_bin(self.nz_data.nz_dict[ibin].z, *params)
+				chi2 = calc_chi2(n_prediction, nz_data.nz_dict[ibin].cov, self.nz_data.nz_dict[ibin].nz)
+				chi2_list.append(chi2)
+			chi2_list = np.array(chi2_list)
+
+			#import ipdb
+			#ipdb.set_trace()
+
+			best_fit_coeff = params_list[chi2_list==chi2_list.min()][0]
+			coeff_list.append(best_fit_coeff)
+
+			if nparams == 2:
+				df = len(self.nz_data.nz_dict[ibin].nz) - 2
+				coeff_cov = get_cov_from_chi2_grid(params_list[:,0],params_list[:,1],chi2_list, df )
+			else:
+				coeff_cov = np.nan*np.identity(nparams)
+			cov_list.append(coeff_cov)
+
+			nzs_bf.append( func_bin(self.nz_theory.z, *best_fit_coeff) )
+
+			self.grid_params = params_list
+			self.grid_chi2 = chi2_list
+			self.grid_chi2_reshape = np.array(chi2_list).reshape( [ngrid]*nparams )
+
+			if save==True:
+				#save chi2 grid
+				data = np.hstack( (params_list,np.array([chi2_list]).T))
+				header = '\t'.join([ 'coeff{0}'.format(i+1) for i in range(len(p0)) ]+['chi2'])
+				np.savetxt(
+					self.config.outdir + '{label1}_{label2}_bin{ibin}_gridchi2.txt'.format(label1=self.config.label,label2=label,ibin=ibin+1), 
+					data, header=header)
+
+				if func == apply_stretch_shift:
+					plt.figure()
+					stretch, shift = params_list.T
+					plt.scatter(stretch, shift, c=np.exp(-0.5*chi2_list) )
+					plt.savefig(self.config.plotdir + '{label1}_{label2}_bin{ibin}_gridchi2.png'.format(label1=self.config.label,label2=label,ibin=ibin+1))
+					plt.close()
+		
+		self.coeff_fromgrid[label] = np.array(coeff_list)
+		self.coeff_cov_fromgrid[label] = np.array(cov_list)
+		self.coeff_err_fromgrid[label] = np.array([np.sqrt(cov.diagonal()) for cov in self.coeff_cov_fromgrid[label] ])
+
+		if save==True:
+			#data = self.coeff_fromgrid[label]
+			data = np.hstack( (self.coeff_fromgrid[label], self.coeff_err_fromgrid[label]) )
+
+			header = '\t'.join(['coeff{0}'.format(i+1) for i in range(len(self.coeff[label][0])) ])
+			header += '\t'
+			header += '\t'.join(['coeff{0}_err'.format(i+1) for i in range(len(self.coeff[label][0])) ])
+			np.savetxt(
+				self.config.outdir + '{label1}_{label2}_coeff_fromgrid.txt'.format(label1=self.config.label,label2=label), 
+				data, header=header)
+
+			k_bf = twopoint.NumberDensity('nz_lens', self.nz_theory.zlow, self.nz_theory.z, self.nz_theory.zhigh, nzs_bf )
+			tp = twopoint.TwoPointFile([],[k_bf],[],None)
+
+			tp.to_fits(self.config.outdir + '{label1}_{label2}_nz_best_fit_template_fromgrid.fits'.format(label1=self.config.label, label2=label),
+				overwrite=True)
+
+			#save coeff cov
+			for ibin in range(self.nbins):
+				np.savetxt(
+					self.config.outdir + '{label1}_{label2}_cov_fromgrid_bin{ibin}.txt'.format(ibin=ibin+1, label1=self.config.label, label2=label), 
+					self.coeff_cov_fromgrid[label][ibin] )
+
+		return
+
 
 	def plot_2d(self, label, ngrid=100):
 		assert label == 'stretch_shift' or label == 'stretch_shiftA'
 		from scipy.stats import multivariate_normal
 
-		nx = int(np.floor(np.sqrt(self.nbins)))
+		nx = int(np.round(np.sqrt(self.nbins)))
 		ny = int(np.ceil(np.sqrt(self.nbins)))
 		fig1, axs1 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
 		ax_list = axs1.flatten()
@@ -533,7 +662,7 @@ class TemplateFit:
 		return 
 
 	def plot_fitted_nz(self,func=None, coeff=None, extra_label=None):
-		nx = int(np.floor(np.sqrt(self.nbins)))
+		nx = int(np.round(np.sqrt(self.nbins)))
 		ny = int(np.ceil(np.sqrt(self.nbins)))
 		fig2, axs2 = plt.subplots(nx, ny, figsize=(3*ny,3*nx))
 		ax_list = axs2.flatten()
@@ -612,6 +741,7 @@ if __name__ == "__main__":
 	nz_overlap.normalize(nz_data, limit_z_range=config.limit_z_range)
 
 	#modify data covariance
+	nz_data.save_cov( config.outdir + '{label}_cov_uncorrected'.format(label=config.label ) + '_bin{ibin}.txt' )
 	nz_data.apply_gamma(config.gamma_array, config.gamma_var_array, config.apply_gamma_error, ndraws=config.ndraws)
 	if config.template_sn is not None:
 		nz_data.add_template_sn(nz_overlap, config.template_sn)
@@ -634,6 +764,8 @@ if __name__ == "__main__":
 
 	template_fit.save_cosmosis_style()
 
+	#grid chi2
+	template_fit.fit_func_grid(apply_stretch_shift, 'stretch_shift', [1.,0.], 		save=True)
 
 	#make plots
 	template_fit.plot_2d('stretch_shift')
@@ -663,6 +795,10 @@ if __name__ == "__main__":
 		func=apply_stretch_shift, 
 		coeff=template_fit.coeff['stretch_shift'],
 		extra_label='stretch_shift')
+	template_fit.plot_fitted_nz(
+		func=apply_stretch_shift, 
+		coeff=template_fit.coeff_fromgrid['stretch_shift'],
+		extra_label='stretch_shift_fromgrid')
 	template_fit.plot_fitted_nz(
 		func=apply_stretch_shiftA, 
 		coeff=template_fit.coeff['stretch_shiftA'],

@@ -7,12 +7,12 @@ import healpy as hp
 
 tpfile = '/Users/jackelvinpoole/DES/y3-3x2pt/data/des-y3/2pt_NG_final_2ptunblind_11_13_20_wnz.fits'
 
-diff_term_file = 'cov_diff_term_wtheta_fid_pca_108_enet_std_107_nside4096_sigmaA1.txt'
+diff_term_file = 'cov_diff_term_wtheta_fid_pca_50_enet_pca_50_nside512_broadbandfit_p3_m3_sigmaA1_5p.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_sigmaA1.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_broadbandfit_p3_m3_sigmaA1.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_broadbandfit_p3_m3_sigmaA1_5p.txt'
 
-extra_label = 'datacov_fidpca108'
+extra_label = '4096_broadbandfit_p3_m3_5param'
 #extra_label = 'datacov_fidpca107'
 #extra_label = 'broadbandfit_p3_m3'
 #extra_label = 'broadbandfit_p3_m3_5params'
@@ -22,50 +22,70 @@ wcov = tp.covmat[-100:,-100:]
 diff_term_cov = np.loadtxt(diff_term_file)
 
 wtheta_file = {
-	'fid_std':'wtheta_redmagic_y3_data_bs0.05_fid_std.fits',
+	#'fid_std':tpfile,
+	'fid_std':'wtheta_redmagic_y3_data_bs0.1_fid_stdnside4096.fits',
+	#'fid_std':'wtheta_redmagic_y3_data_bs0.05_fid_std.fits',
 	
-	#'fid_pca_108':'wtheta_redmagic_y3_data_bs0.1_fid_pca_108nside4096.fits',
-	'fid_pca_108':'wtheta_redmagic_y3_data_bs0.05_fid_pca_108.fits',
+	'fid_pca_108':'wtheta_redmagic_y3_data_bs0.1_fid_pca_108nside4096.fits',
+	#'fid_pca_108':'wtheta_redmagic_y3_data_bs0.05_fid_pca_108.fits',
 	
-	#'fid_pca_107':'wtheta_redmagic_y3_data_bs0.1_fid_pca_107nside4096.fits',
-	'fid_pca_107':'wtheta_redmagic_y3_data_bs0.05_fid_pca_107.fits',
+	'fid_pca_107':'wtheta_redmagic_y3_data_bs0.1_fid_pca_107nside4096.fits',
+	#'fid_pca_107':'wtheta_redmagic_y3_data_bs0.05_fid_pca_107.fits',
 	
 	'enet_pca_108':'wtheta_redmagic_y3_data_bs0.05_enet_pca_108.fits',
 	
 	'enet_pca_108_hii99_cd99':'wtheta_redmagic_y3_data_bs0.05_enet_pca_108_hii99_cd99.fits',
 	
-	#'enet_std_107':'wtheta_redmagic_y3_data_bs0.1_enet_std_107nside4096.fits',
-	'enet_std_107':'wtheta_redmagic_y3_data_bs0.05_enet_std_107.fits',
+	'enet_std_107':'wtheta_redmagic_y3_data_bs0.1_enet_std_107nside4096.fits',
+	#'enet_std_107':'wtheta_redmagic_y3_data_bs0.05_enet_std_107.fits',
 	
 	'enet_std_108':'wtheta_redmagic_y3_data_bs0.05_enet_std_108.fits',
+
+	'fid_pca_50':'wtheta_redmagic_y3_data_bs0.1_fid_pca_50nside4096.fits',
+	#'fid_pca_50':'wtheta_redmagic_y3_data_bs0.05_fid_pca_50.fits',
+
+	'enet_pca_50':'wtheta_redmagic_y3_data_bs0.1_enet_pca_50nside4096.fits',
+	#'enet_pca_50':'wtheta_redmagic_y3_data_bs0.05_enet_pca_50.fits',
+
+	#'fid_gb':'wtheta_redmagic_y3_data_bs0.05_fid_gb.fits',
+	'fid_gb':'gb_wtheta/corr_noFGCM_noDEPTH_noAIRMASS_noEBV.fits',
+
 }
 colors =  {
 	'fid_std':'r',
 	'fid_pca_108':'k',
 	'fid_pca_107':'c',
 	'enet_pca_108':'b',
+	'fid_pca_50':'b',
 	'enet_pca_108_hii99_cd99':'c',
 	'enet_std_107':'y',
 	'enet_std_108':'g',
+	'enet_pca_50':'y',
+	'fid_gb':'m',
 }
 plot_label_dict = {
 	'fid_std':'fid STD',
 	'fid_pca_108':'fid PCA108',
 	'fid_pca_107':'fid PCA107',
+	'fid_pca_50':'fid PC<50',
+	'fid_gb':'NN',
 	'enet_pca_108':'ENET PCA108',
 	'enet_pca_108_hii99_cd99':'ENET PCA108 no-high-pixels',
 	'enet_std_107':'ENET STD107',
 	'enet_std_108':'ENET STD108',
+	'enet_pca_50':'ENET PC<50',
 }
 
 #labels = [ 'fid_pca_108', 'fid_std', 'enet_pca_108', 'enet_pca_108_hii99_cd99', 'enet_std_107', ]
 #labels = [ 'fid_std', 'fid_pca_107', 'fid_pca_108', 'enet_pca_108', 'enet_std_108', 'enet_std_107', ]
-labels = [ 'fid_std', 'fid_pca_107', 'fid_pca_108', 'enet_pca_108', 'enet_std_107', ]
+#labels = [ 'fid_std', 'fid_pca_107', 'fid_pca_108', 'enet_pca_108', 'enet_std_107', ]
 #labels = [ 'fid_pca_108', 'fid_std', 'enet_pca_108', 'enet_std_108', ]
 #labels = [ 'fid_pca_108', 'fid_std', 'enet_pca_108', 'enet_std_107','enet_std_108', ]
+#labels = [ 'fid_pca_50', 'fid_std', 'fid_pca_107', 'enet_pca_50', ]
+labels = [ 'fid_pca_50', 'fid_std', 'fid_pca_107', 'enet_pca_50', 'fid_gb']
 plot_label = '-'.join(labels)
 
-compare_label = 'fid_pca_108'
+compare_label = 'fid_pca_50'
 plot_label += '-'+'compare'+compare_label + extra_label
 
 sc = np.array([39.22610651, 24.75, 19.65962381, 15.61619428, 12.40438403] )
@@ -78,7 +98,7 @@ if nbins > 3:
 	length = nbins-1
 else:
 	length = nbins
-fig1, axs1 = plt.subplots(1,nbins,figsize=(scale*6.4*length, scale*4.8), squeeze=False)
+fig1, axs1 = plt.subplots(1,nbins,figsize=(scale*6.4*length, scale*4.8), sharey=True, squeeze=False)
 fig2, axs2 = plt.subplots(1,nbins,figsize=(scale*6.4*length, scale*4.8), sharey=True, squeeze=False)
 
 angle_min = hp.nside2resol(1024,arcmin=True)*2
@@ -133,14 +153,15 @@ for label in labels:
 		mask_list.append(mask)
 		chi2 = lsssys.calc_chi2(wtheta0_bin1, wcov_v2_bin1, wtheta_bin1 , mask=mask, v=False )
 		axs2[0][ibin].axvline(sc[ibin], color='k', ls='--')
-		axs2[0][ibin].plot(theta[select], (wtheta_bin1 - wtheta0_bin1)[select],'-', color=colors[label], lw=2., 
+		axs2[0][ibin].plot(theta[select], (wtheta_bin1 - wtheta0_bin1)[select],'-', color=colors[label], 
+			lw=3., 
 			label=plot_label_dict[label] + r' $\chi^2=$'+str(np.round(chi2,1)))
 		#axs2[0][ibin].errorbar(theta[select], (wmean0_bin1-wmean0_bin1)[select], err_bin1[select], fmt='.', color='k', label='truth, cosmolike errors')
 		axs2[0][ibin].set_title('bin {0}'.format(ibin+1) )
 		axs2[0][ibin].set_xlabel(r'$\theta$', fontsize=14)
 		if ibin == 0:
 			axs2[0][ibin].set_ylabel(r'$\Delta w(\theta)$', fontsize=14)
-		axs2[0][ibin].legend()
+		axs2[0][ibin].legend(loc='upper right')
 		axs2[0][ibin].semilogx()
 
 	#mask_all = np.hstack([np.append(np.zeros(6).astype('bool'), m1) for m1 in mask_list])
@@ -162,5 +183,6 @@ fig1.savefig('wtheta_allbins_{0}.png'.format(plot_label) )
 fig1.clear()
 
 fig2.tight_layout()
+axs2[0][0].set_ylim([-0.005, 0.008])
 fig2.savefig('deltawtheta_allbins_{0}.png'.format(plot_label))	
 fig2.clear()

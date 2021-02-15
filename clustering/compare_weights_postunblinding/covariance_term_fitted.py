@@ -19,14 +19,18 @@ wtheta_file = {
 	'fid_pca_107':'wtheta_redmagic_y3_data_bs0.1_fid_pca_107nside4096.fits',
 	'fid_pca_108':'wtheta_redmagic_y3_data_bs0.1_fid_pca_108nside4096.fits',
 	'enet_std_107':'wtheta_redmagic_y3_data_bs0.1_enet_std_107nside4096.fits',
+
+	'fid_pca_50':'wtheta_redmagic_y3_data_bs0.1_fid_pca_50nside4096.fits',
+	'enet_pca_50':'wtheta_redmagic_y3_data_bs0.1_enet_pca_50nside4096.fits',
+	'fid_gb':'gb_wtheta/corr_noFGCM_noDEPTH_noAIRMASS_noEBV.fits',
 }
 
 #extra_label = 'nside512'
 extra_label = 'nside4096_broadbandfit_p3_m3'
 
 #label1 = 'fid_pca_108'
-label1 = 'fid_pca_107'
-label2 = 'enet_std_107'
+label1 = 'fid_pca_50'
+label2 = 'enet_pca_50'
 labels = [label1, label2]
 
 wdict = {}

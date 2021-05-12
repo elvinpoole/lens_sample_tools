@@ -7,26 +7,21 @@ import healpy as hp
 import scipy.optimize
 
 
-tpfile = '/Users/jackelvinpoole/DES/y3-3x2pt/data/des-y3/2pt_NG_final_2ptunblind_11_13_20_wnz.fits'
+#for maglim covariance 
+tpfile = '/Users/jackelvinpoole/DES/y3-3x2pt-methods/cosmosis/data_vectors/fiducial_maglim_source_sompz_lens_DNFPDF_nu.fits' 
 tp = twopoint.TwoPointFile.from_fits(tpfile)
-wcov = tp.covmat[-100:,-100:]
+wcov = tp.covmat[-120:,-120:]
 err = np.sqrt(wcov.diagonal())
 
 wtheta_file = {
-	#'fid_pca_108':'wtheta_redmagic_y3_data_bs0.05_fid_pca_108.fits',
-	#'enet_std_107':'wtheta_redmagic_y3_data_bs0.05_enet_std_107.fits',
 
-	'fid_pca_107':'wtheta_redmagic_y3_data_bs0.1_fid_pca_107nside4096.fits',
-	'fid_pca_108':'wtheta_redmagic_y3_data_bs0.1_fid_pca_108nside4096.fits',
-	'enet_std_107':'wtheta_redmagic_y3_data_bs0.1_enet_std_107nside4096.fits',
+	'fid_pca_50':'wtheta_maglim_y3_data_bs0.1_fid_pca_50nside4096.fits',
 
-	'fid_pca_50':'wtheta_redmagic_y3_data_bs0.1_fid_pca_50nside4096.fits',
-	'enet_pca_50':'wtheta_redmagic_y3_data_bs0.1_enet_pca_50nside4096.fits',
-	'fid_gb':'gb_wtheta/corr_noFGCM_noDEPTH_noAIRMASS_noEBV.fits',
+	'enet_pca_50':'wtheta_maglim_y3_data_bs0.1_enet_pca_50nside4096.fits',
 }
 
 #extra_label = 'nside512'
-extra_label = 'nside4096_broadbandfit_p3_m3'
+extra_label = 'maglim_nside4096_broadbandfit_p3_m3'
 
 #label1 = 'fid_pca_108'
 label1 = 'fid_pca_50'
@@ -43,9 +38,9 @@ for label in labels:
 	w = twopoint.TwoPointFile.from_fits(wtheta_file[label],covmat_name=None).get_spectrum('wtheta')
 	wdict[label] = w
 
-sc = np.array([39.22610651, 24.75, 19.65962381, 15.61619428, 12.40438403] )
+sc = np.array([33.8758448, 24.34675, 17.40771522, 14.48788252, 12.87933950, 12.05672751] )
 
-sample_name = 'redMaGiC'
+sample_name = 'MagLim'
 
 fit_xi_dict = {}
 fig, axs = plt.subplots(2,1,figsize=(8,6))
@@ -80,7 +75,7 @@ for ilabel, label in enumerate(labels):
 
 		coeff, coeff_cov = scipy.optimize.curve_fit(broad_band, theta, xi, sigma=wcov_bin )
 		fit_xi_bin = broad_band(theta, *coeff)
-		np.savetxt('coeff_B_rm_bin{0}_{1}.txt'.format(ibin, label), coeff)
+		np.savetxt('coeff_B_maglim_bin{0}_{1}.txt'.format(ibin, label), coeff)
 
 		fit_xi = np.append(fit_xi, fit_xi_bin)
 		chi2 = lsssys.calc_chi2(xi, wcov_bin, fit_xi_bin, v=False)
@@ -118,7 +113,6 @@ for ilabel, label in enumerate(labels):
 		axs2[ilabel].errorbar(index[sc_mask], (wdict[label].value-fit_xi_dict[label])[sc_mask], err[sc_mask], color='k', fmt='o', label=chi2_label)
 		axs2[ilabel].set_ylabel(r'$w(\theta)_{\rm %s} - w(\theta)_{\rm poly-fit}$' % label_names[label],fontsize=16)
 		axs2[ilabel].legend(fontsize=14)
-
 
 ############
 axs1.axhline(0,color='g')
@@ -191,10 +185,8 @@ axs3[2].plot(index[sc_mask],
 axs3[2].set_ylabel(r'$w(\theta)_{\rm ISD} - w(\theta)_{\rm ENET}$',fontsize=12)
 axs3[2].legend()
 
-
 fig.tight_layout()
 fig.savefig('poly_fit_joint_{0}_{1}.png'.format('_'.join(labels), extra_label))
-
 
 fig1.tight_layout()
 fig1.savefig('poly_fit_diff_joint_{0}_{1}.png'.format('_'.join(labels), extra_label))
@@ -204,8 +196,6 @@ fig2.savefig('poly_fit_label1_diff_joint_{0}_{1}.png'.format('_'.join(labels), e
 
 fig3.tight_layout()
 fig3.savefig('poly_fit_label1_label2_diff_joint_{0}_{1}.png'.format('_'.join(labels), extra_label))
-
-
 
 
 diff = fit_xi_dict[label1] - fit_xi_dict[label2]
@@ -229,17 +219,18 @@ plt.close()
 
 #remove off-diagonal blocks
 diff_term_cov_5p = np.copy(diff_term_cov)
-for ibin in range(5):
-	for jbin in range(5):
+nbins = 6
+for ibin in range(nbins):
+	for jbin in range(nbins):
 		if ibin != jbin:
 			diff_term_cov_5p[ibin*20:(ibin+1)*20,jbin*20:(jbin+1)*20] = 0.
 
-np.savetxt(outfile[:-4]+'_5p.txt', diff_term_cov_5p)
+np.savetxt(outfile[:-4]+'_6p.txt', diff_term_cov_5p)
 
 plt.figure()
 plt.imshow(np.log10(np.abs(diff_term_cov_5p)))
 plt.colorbar(label=r'log$|\Delta w \Delta w^T|$)')
 plt.title(outfile)
-plt.savefig('cov_diff_{0}_{1}_{2}.png'.format(label1, label2, extra_label))
+plt.savefig('cov_diff_{0}_{1}_{2}.png'.format(label1, label2, extra_label+'_6p'))
 plt.close()
 

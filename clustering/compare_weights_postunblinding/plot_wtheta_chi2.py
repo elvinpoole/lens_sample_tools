@@ -7,19 +7,22 @@ import healpy as hp
 
 tpfile = '/Users/jackelvinpoole/DES/y3-3x2pt/data/des-y3/2pt_NG_final_2ptunblind_11_13_20_wnz.fits'
 
-diff_term_file = 'cov_diff_term_wtheta_fid_pca_50_enet_pca_50_nside512_broadbandfit_p3_m3_sigmaA1_5p.txt'
+diff_term_file1 = 'cov_diff_term_wtheta_fid_pca_50_enet_pca_50_nside4096_broadbandfit_p3_m3_sigmaA1_5p.txt'
+diff_term_file2 = 'cov_diff_term_wtheta_falsebias_false_contam-enet_correct-fidpca50__sigmaA1_5p.txt'
+#diff_term_file = 'cov_diff_term_wtheta_fid_pca_50_enet_pca_50_nside512_broadbandfit_p3_m3_sigmaA1_5p.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_sigmaA1.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_broadbandfit_p3_m3_sigmaA1.txt'
 #diff_term_file = 'cov_diff_term_wtheta_fid_pca_107_enet_std_107_nside4096_broadbandfit_p3_m3_sigmaA1_5p.txt'
 
-extra_label = '4096_broadbandfit_p3_m3_5param'
+extra_label = '4096_broadbandfit_p3_m3_5param_term1term3'
 #extra_label = 'datacov_fidpca107'
 #extra_label = 'broadbandfit_p3_m3'
 #extra_label = 'broadbandfit_p3_m3_5params'
 
 tp = twopoint.TwoPointFile.from_fits(tpfile)
 wcov = tp.covmat[-100:,-100:]
-diff_term_cov = np.loadtxt(diff_term_file)
+
+diff_term_cov = np.loadtxt(diff_term_file1) + np.loadtxt(diff_term_file2)
 
 wtheta_file = {
 	#'fid_std':tpfile,
@@ -82,7 +85,8 @@ plot_label_dict = {
 #labels = [ 'fid_pca_108', 'fid_std', 'enet_pca_108', 'enet_std_108', ]
 #labels = [ 'fid_pca_108', 'fid_std', 'enet_pca_108', 'enet_std_107','enet_std_108', ]
 #labels = [ 'fid_pca_50', 'fid_std', 'fid_pca_107', 'enet_pca_50', ]
-labels = [ 'fid_pca_50', 'fid_std', 'fid_pca_107', 'enet_pca_50', 'fid_gb']
+#labels = [ 'fid_pca_50', 'fid_std', 'fid_pca_107', 'enet_pca_50', 'fid_gb']
+labels = [ 'fid_pca_50', 'enet_pca_50',]
 plot_label = '-'.join(labels)
 
 compare_label = 'fid_pca_50'
@@ -183,6 +187,6 @@ fig1.savefig('wtheta_allbins_{0}.png'.format(plot_label) )
 fig1.clear()
 
 fig2.tight_layout()
-axs2[0][0].set_ylim([-0.005, 0.008])
+axs2[0][0].set_ylim([-0.005, 0.010])
 fig2.savefig('deltawtheta_allbins_{0}.png'.format(plot_label))	
 fig2.clear()

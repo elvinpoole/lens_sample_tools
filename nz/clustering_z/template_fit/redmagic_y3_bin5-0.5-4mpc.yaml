@@ -1,0 +1,32 @@
+#
+# config file to run template fit on clusteirng-z
+# 
+# April 23 2020 results
+
+#output directories
+outdir: ./output_Apr23_2020_redmagic_cutarray_amp_chi21_mod_bin5-0.5-4mpc/
+plotdir: ./plots_Apr23_2020_redmagic_cutarray_amp_chi21_mod_bin5-0.5-4mpc/
+
+#files and labels
+label: rm_0.5.1_wide_0.9binning_bin5-0.5-4mpc
+wz_data_dir: ../data/y3_redmagic_clusteringz_Apr23_2020_with_large_scales_in_bin5/
+nz_overlap_file: output_Nov20_2019/nz_combined_overlap_rm_0.5.1_wide_0.9binning.txt
+overlap_format: txt
+#nz_overlap_file: output_overlap/nz_combined_overlap_rm_0.5.1_wide_0.9binning_large-dz.txt
+nz_full_file: /Users/jackelvinpoole/DES/cats/y3/redmagic/combined_sample_0.5.1_wide_0.9binning_zmax0.95/nz_y3_redmagic_v0.5.1_wide_gold_2.2.1_combined_hd3_hl2_z_samp.fits
+nbins: 5
+
+#z dependant galaxy bias correction
+apply_gamma_error: J
+gammaarray: 0.4 0.2 0.0 0.3 1.0
+gammaunc: 0.4 0.4 0.6 0.8 3.0
+
+#cut the tails from clustering-z #Y3 redmagic v0.5
+apply_cut_array: True
+ndraws: None 
+cutzarray_min: 0.15 0.31 0.45 0.57 0.69
+cutzarray_max: 0.41 0.55 0.71 0.89 1.05
+
+#absolute_sigma in curve_fit
+absolute_sigma: False
+

@@ -1,5 +1,7 @@
 import numpy as np
 import pylab as plt 
+import sys
+sys.path.append('/global/u1/j/jelvinpo/DES/lss_sys/')
 import lsssys
 import twopoint
 

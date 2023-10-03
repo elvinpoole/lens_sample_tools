@@ -26,6 +26,7 @@ deep_field_wise_file = "/global/cfs/projectdirs/des/nweaverd/y3_deepfields/dr10.
 
 balrog_detection_table = astropy.table.Table.read(balrog_detection_file)
 data = np.array([
+    balrog_detection_table['bal_id'],
     balrog_detection_table['true_id'],
     balrog_detection_table["true_bdf_mag_deredden"][:,0],
     balrog_detection_table["true_bdf_mag_deredden"][:,1],
@@ -34,6 +35,7 @@ data = np.array([
     balrog_detection_table['detected'],
 ])
 columns = [
+    'bal_id',
     'true_id', 
     'true_bdf_mag_deredden_g',
     'true_bdf_mag_deredden_r',
@@ -51,6 +53,7 @@ deep_field_wise = deep_field_wise_table[names].to_pandas()
 
 balrog_maglim_fits = fio.read(balrog_maglim_file)
 balrog_maglim = astropy.table.Table(data=[
+    balrog_maglim_fits["bal_id"],
     balrog_maglim_fits["true_id"],
     balrog_maglim_fits['meas_cm_mag_deredden'][:,1],
     balrog_maglim_fits['meas_cm_mag_deredden'][:,3],
@@ -59,6 +62,7 @@ balrog_maglim = astropy.table.Table(data=[
     balrog_maglim_fits['true_bdf_T_err'],
     ],
     names=[
+        'bal_id',
         'INJ_ID',
         'meas_cm_mag_deredden_r',
         'meas_cm_mag_deredden_z',
@@ -116,12 +120,18 @@ balrog_maglim_matched_deep_wise = balrog_maglim.merge(
     right_on='ID')
 is_match_maglim = ~np.isnan(np.array(balrog_maglim_matched_deep_wise['ID']))
 
+in_wise = np.in1d(deep_field['ID'],deep_field_wise['ID'])
+in_wise_maglim = np.in1d(balrog_maglim_matched_deep['ID'],balrog_maglim_matched_deep_wise['ID'])
+
 ###############################
 ###### Count numbers
 ###############################
 
 print("Fraction of balrog injections with deep field match (should be 1.0) =", 
       len(balrog_detection_matched_deep)/len(balrog_detection),
+     )
+print("Fraction of deep field objects with a WISE match =", 
+      sum(in_wise)/len(in_wise),
      )
 print("Fraction of balrog injections with WISE match =", 
       len(balrog_detection_matched_deep_wise[is_match_det])/len(balrog_detection),
@@ -135,12 +145,8 @@ print("Fraction of balrog-maglim with WISE match =",
 
 
 ###############################
-###### Plot deep field ra/dec and matches
+###### Plot all deep field ra/dec and matches
 ###############################
-
-fig, axs = plt.subplots(2,2,figsize=(5,5))
-axs = axs.flatten()
-in_wise = np.in1d(deep_field['ID'],deep_field_wise['ID'])
 
 ra  = np.array(deep_field['RA_x'])
 dec = np.array(deep_field['DEC_x'])
@@ -149,11 +155,55 @@ select2 = (ra < 60)*(dec > -10)
 select3 = (ra > 40)*(dec < -20)
 select4 = (ra > 120)
 select = [select1, select2, select3, select4,]
-for i in range(4):
-    axs[i].plot(ra[select[i]], dec[select[i]], ',', color='blue')
-    axs[i].plot(ra[in_wise*select[i]], dec[in_wise*select[i]], ',', color='orange')
 
-fig.savefig('deep_ra_dec.png')
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[select[i]], dec[select[i]], gridsize=300, mincnt=1)
+fig.savefig('deep_ra_dec_hex_all.png')
+
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[in_wise*select[i]], dec[in_wise*select[i]], gridsize=300, mincnt=1)
+fig.savefig('deep_ra_dec_hex_in.png')
+
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[~in_wise*select[i]], dec[~in_wise*select[i]], gridsize=300, mincnt=1)
+fig.savefig('deep_ra_dec_hex_out.png')
+
+
+###############################
+###### Plot maglim-balrog deep field ra/dec and matches
+###############################
+
+ra  = np.array(balrog_maglim_matched_deep['RA_x'])
+dec = np.array(balrog_maglim_matched_deep['DEC_x'])
+select1 = (ra < 20)
+select2 = (ra < 60)*(dec > -10)
+select3 = (ra > 40)*(dec < -20)
+select4 = (ra > 120)
+select = [select1, select2, select3, select4,]
+
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[select[i]], dec[select[i]], gridsize=100, mincnt=1)
+fig.savefig('deep_ra_dec_balrogmaglim_hex_all.png')
+
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[in_wise_maglim*select[i]], dec[in_wise_maglim*select[i]], gridsize=100, mincnt=1)
+fig.savefig('deep_ra_dec_balrogmaglim_hex_in.png')
+
+fig, axs = plt.subplots(2,2,figsize=(8,8))
+axs = axs.flatten()
+for i in range(4):
+    axs[i].hexbin(ra[~in_wise_maglim*select[i]], dec[~in_wise_maglim*select[i]], gridsize=100, mincnt=1)
+fig.savefig('deep_ra_dec_balrogmaglim_hex_out.png')
 
 
 ###############################
@@ -197,23 +247,46 @@ for ibin in range(len(binedges)-1):
     gal_before  = np.sum((knn_bin_before == 1).astype(int))
     star_before = np.sum((knn_bin_before == 2).astype(int))
     amb_before  = np.sum((knn_bin_before == 3).astype(int))
-    if amb_before == 0:
-        amb_before = 1
 
     nc_after   = np.sum((knn_bin_after == 0).astype(int))
     gal_after  = np.sum((knn_bin_after == 1).astype(int))
     star_after = np.sum((knn_bin_after == 2).astype(int))
     amb_after  = np.sum((knn_bin_after == 3).astype(int))
     
+    if amb_before == 0 and amb_after == 0:
+        amb_x = 0.
+    else:
+        amb_x = np.round(1-amb_after/amb_before,3)
+    
     print(
         str(ibin+1).ljust(3), 
         str(np.round(1-nc_after/nc_before,3)).ljust(8), 
         str(np.round(1-gal_after/gal_before,3)).ljust(6), 
-        str(np.round(1-star_after/star_before,3)).ljust(4),
-        str(np.round(1-amb_after/amb_before,3)).ljust(9),
+        str(np.round(1-star_after/star_before,3)).ljust(5),
+        str(amb_x).ljust(9),
         )
     
-    
-    
+###############################
+###### plot the proerties on the non matches
+###############################  
+"""
+fig, axs = plt.subplots(2,2,figsize=(5,5))
+axs = axs.flatten()
+axs[0].hist(det['g'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='all injections' )
+axs[0].hist(detmatch['g'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='non-matches' )
+axs[1].hist(det['r'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='all injections' )
+axs[1].hist(detmatch['r'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='non-matches' )
+axs[2].hist(det['i'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='all injections' )
+axs[2].hist(detmatch['i'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='non-matches' )
+axs[3].hist(det['z'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='all injections' )
+axs[3].hist(detmatch['z'], bins=100, range=(16,26), density=True, histtype='step', lw=2., label='non-matches' )
+axs[0].set_xlabel('g-mag')
+axs[1].set_xlabel('r-mag')
+axs[2].set_xlabel('i-mag')
+axs[3].set_xlabel('z-mag')
+axs[0].legend(loc='upper left')
+fig.tight_layout()
+"""
+
     
     
